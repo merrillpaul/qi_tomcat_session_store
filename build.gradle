@@ -28,7 +28,44 @@ dependencies {
     // We use the latest groovy 2.x version for Spock testing
     compile 'org.codehaus.groovy:groovy-all:2.4.7'
 
+    def tomcatVersion = '8.5.5'
+    compile "org.apache.tomcat.embed:tomcat-embed-core:${tomcatVersion}"
+    compile 'org.mongodb:mongo-java-driver:3.7.0'
+    // compile "org.apache.com.pearson.session.tomcat.embed:com.pearson.session.tomcat-embed-logging-juli:${tomcatVersion}"
+    // compile "org.apache.com.pearson.session.tomcat.embed:com.pearson.session.tomcat-embed-jasper:${tomcatVersion}"
+
     // Use the awesome Spock testing and specification framework even with Java
     testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
     testCompile 'junit:junit:4.12'
 }
+
+allprojects {
+
+sourceSets {
+
+        main {
+            java {
+                srcDirs = ['src/main/java']
+            }
+            groovy {
+                srcDirs = ['src/main/groovy']
+            }
+        }
+        test {
+            java.srcDirs = ['src/test/unit/java']
+            groovy.srcDirs = ['src/test/unit/groovy']
+        }
+        integration {
+            java.srcDirs = ['src/test/integration/java']
+            groovy.srcDirs = ['src/test/integration/groovy']
+            resources.srcDir 'src/test/integration/resources'
+            compileClasspath += main.output + test.output
+            runtimeClasspath += main.output + test.output
+        }
+}
+
+configurations {
+        integrationCompile.extendsFrom testCompile
+        integrationRuntime.extendsFrom testRuntime
+    }
+}   
