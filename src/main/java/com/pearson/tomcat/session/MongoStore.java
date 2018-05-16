@@ -51,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.mongodb.client.model.Filters.and;
 import static com.mongodb.client.model.Filters.eq;
+import static com.mongodb.client.model.Filters.expr;
 import static com.mongodb.client.model.Filters.where;
 
 /**
@@ -637,15 +638,16 @@ public class MongoStore extends StoreBase {
 
 		try {
 
-			MongoClient mongoClient =
-					MongoClients.create(
+			MongoClient mongoClient = null;
+
+			mongoClient = MongoClients.create(
 						this.buildClient()
 					);
 
 			this.mongoDatabase = mongoClient.getDatabase(this.dbName);
-			this.gridFSFilesBucket = GridFSBuckets.create(this.mongoDatabase, "session_data");
 			collection = this.mongoDatabase.getCollection(this.sessionCollection);
 			this.collection = collection;
+			this.gridFSFilesBucket = GridFSBuckets.create(this.mongoDatabase, "session_data");
 		} catch (Exception ex) {
 			ex.printStackTrace();
 			getLogger().error(sm.getString(getStoreName() + ".checkConnectionMongoException", ex.toString()));
@@ -714,12 +716,23 @@ public class MongoStore extends StoreBase {
 
 
 	private MongoClientSettings buildClient() {
-		MongoClientSettings expected = MongoClientSettings.builder()
-				.credential(
-						MongoCredential.createCredential(
-								this.username, this.dbName, this.password.toCharArray()))
 
-				.applyConnectionString(new ConnectionString(this.connectionURL))
+		MongoClientSettings.Builder builder = MongoClientSettings.builder();
+
+		if (this.connectionURL.startsWith("mongodb+srv://")) {
+			String newUrl = this.connectionURL.replace("mongodb+srv://", "mongodb+srv://" + this.username + ":" + this.password + "@") + this.dbName;
+
+			builder.applyConnectionString(new ConnectionString(newUrl));
+		} else {
+			builder
+					.credential(
+							MongoCredential.createCredential(
+									this.username, this.dbName, this.password.toCharArray()))
+
+					.applyConnectionString(new ConnectionString(this.connectionURL));
+		}
+
+		MongoClientSettings expected = builder
 
 				.applyToConnectionPoolSettings(new Block<ConnectionPoolSettings.Builder>() {
 					@Override
@@ -752,9 +765,9 @@ public class MongoStore extends StoreBase {
 								.invalidHostNameAllowed(true);
 					}
 				})*/
-				.readConcern(ReadConcern.MAJORITY)
-				.readPreference(ReadPreference.secondary())
-				.writeConcern(WriteConcern.MAJORITY.withWTimeout(2500, TimeUnit.MILLISECONDS))
+				//.readConcern(ReadConcern.MAJORITY)
+				//.readPreference(ReadPreference.secondary())
+				//.writeConcern(WriteConcern.MAJORITY.withWTimeout(2500, TimeUnit.MILLISECONDS))
 				.applicationName(this.getName())
 				.compressorList(Arrays.asList(MongoCompressor.createZlibCompressor().withProperty(MongoCompressor.LEVEL, 5)))
                 .retryWrites(true)
@@ -794,7 +807,9 @@ public class MongoStore extends StoreBase {
 					iter = collection.find(
 							and(
 									eq(sessionAppCol, getName()),
-									where("this." + sessionLastAccessedCol + " + this." + sessionMaxInactiveCol + " * 1000 < " + System.currentTimeMillis())
+									//where("this." + sessionLastAccessedCol + " + this." + sessionMaxInactiveCol + " * 1000 < " + System.currentTimeMillis())
+									// this was needed for mongo atlas
+									expr(Document.parse("  { $lt: [{	$sum: [	\"$" + sessionLastAccessedCol + "\", { $multiply: [ \"$" + sessionMaxInactiveCol + "\", 1000 ]}]}, " + System.currentTimeMillis() + "	] }  "))
 							)
 					);
 				}

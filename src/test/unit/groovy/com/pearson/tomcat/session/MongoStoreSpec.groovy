@@ -11,9 +11,14 @@ import spock.lang.Specification
 
 class MongoStoreSpec extends Specification {
 
-	static final URL = "mongodb://localhost:27017"
+	//static final URL = "mongodb://localhost:27017"
+	//static final DB_NAME = "tomcatsessionsdb"
+	//static final USER = "tomcat_sessions_user"
+	//static final PWD = "password1!"
+
+	static final URL = "mongodb+srv://qidevsessioncluster-kyjjk.mongodb.net/"
 	static final DB_NAME = "tomcatsessionsdb"
-	static final USER = "tomcat_sessions_user"
+	static final USER = "sessions_user"
 	static final PWD = "password1!"
 
 	MongoStore mongoStore
@@ -41,6 +46,7 @@ class MongoStoreSpec extends Specification {
 		collection = mongoStore.getConnection()
 		clearAll()
 	}
+
 
 	def "should get collection and grid fs" () {
 		expect:
