@@ -16,6 +16,7 @@ class MongoStoreSpec extends Specification {
 	//static final USER = "tomcat_sessions_user"
 	//static final PWD = "password1!"
 
+	//static final URL = "mongodb+srv://merrill-kkxaj.mongodb.net/"
 	static final URL = "mongodb+srv://qidevsessioncluster-kyjjk.mongodb.net/"
 	static final DB_NAME = "tomcatsessionsdb"
 	static final USER = "sessions_user"
