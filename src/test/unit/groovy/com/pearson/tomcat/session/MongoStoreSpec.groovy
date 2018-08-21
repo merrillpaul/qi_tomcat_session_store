@@ -7,8 +7,10 @@ import org.apache.catalina.Manager
 import org.apache.catalina.session.StandardSession
 import org.apache.juli.logging.Log
 import org.bson.Document
+import spock.lang.Ignore
 import spock.lang.Specification
 
+@Ignore
 class MongoStoreSpec extends Specification {
 
 	//static final URL = "mongodb://localhost:27017"
@@ -28,6 +30,7 @@ class MongoStoreSpec extends Specification {
 	MongoCollection collection
 
 	def setup() {
+
 		manager = Mock(Manager)
 		manager.createEmptySession() >> {
 			return new StandardSession(manager)

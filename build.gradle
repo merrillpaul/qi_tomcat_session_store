@@ -31,6 +31,7 @@ dependencies {
     def tomcatVersion = '8.5.5'
     compile "org.apache.tomcat.embed:tomcat-embed-core:${tomcatVersion}"
     compile 'org.mongodb:mongo-java-driver:3.7.0'
+    compile 'com.amazonaws:aws-java-sdk-bundle:1.11.391'
     // compile "org.apache.com.pearson.session.tomcat.embed:com.pearson.session.tomcat-embed-logging-juli:${tomcatVersion}"
     // compile "org.apache.com.pearson.session.tomcat.embed:com.pearson.session.tomcat-embed-jasper:${tomcatVersion}"
 
@@ -68,4 +69,14 @@ configurations {
         integrationCompile.extendsFrom testCompile
         integrationRuntime.extendsFrom testRuntime
     }
-}   
+}
+
+def ANSI_RESET = "\u001B[0m"
+def ANSI_RED = "\u001B[31m"
+def ANSI_GREEN = "\u001B[32m"
+test {
+    afterTest { desc, result ->
+        println "${ANSI_RESET} [UNIT][${project.name}]: ${desc.className}.[${desc.name}] with result: " +
+                "${result.resultType.toString() == 'SUCCESS'? ANSI_GREEN: ANSI_RED} ${result.resultType} ${ANSI_RESET}"
+    }
+}
