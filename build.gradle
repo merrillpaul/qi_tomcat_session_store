@@ -31,6 +31,7 @@ dependencies {
     def tomcatVersion = '8.5.5'
     compile "org.apache.tomcat.embed:tomcat-embed-core:${tomcatVersion}"
     compile 'org.mongodb:mongo-java-driver:3.7.0'
+    compile "redis.clients:jedis:2.9.0"
     // compile "org.apache.com.pearson.session.tomcat.embed:com.pearson.session.tomcat-embed-logging-juli:${tomcatVersion}"
     // compile "org.apache.com.pearson.session.tomcat.embed:com.pearson.session.tomcat-embed-jasper:${tomcatVersion}"
 

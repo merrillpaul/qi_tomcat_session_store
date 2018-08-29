@@ -5,9 +5,6 @@ import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.MongoCompressor;
 import com.mongodb.MongoCredential;
-import com.mongodb.ReadConcern;
-import com.mongodb.ReadPreference;
-import com.mongodb.WriteConcern;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
@@ -19,15 +16,12 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.connection.ConnectionPoolSettings;
 import com.mongodb.connection.ServerSettings;
 import com.mongodb.connection.SocketSettings;
-import com.mongodb.connection.SslSettings;
-import org.apache.catalina.Container;
 import org.apache.catalina.Context;
 import org.apache.catalina.Globals;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.Session;
 import org.apache.catalina.Store;
 import org.apache.catalina.session.StandardSession;
-import org.apache.catalina.session.StoreBase;
 import org.apache.catalina.util.LifecycleBase;
 import org.apache.juli.logging.Log;
 import org.bson.Document;
@@ -41,7 +35,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -52,7 +45,6 @@ import java.util.concurrent.TimeUnit;
 import static com.mongodb.client.model.Filters.and;
 import static com.mongodb.client.model.Filters.eq;
 import static com.mongodb.client.model.Filters.expr;
-import static com.mongodb.client.model.Filters.where;
 
 /**
  * Implementation of the {@link Store Store}
@@ -91,16 +83,12 @@ import static com.mongodb.client.model.Filters.where;
  * </code>
  * This uses a qi_sessions collection inside
  */
-public class MongoStore extends StoreBase {
+public class MongoStore extends AbstractStore {
 
 	private Log getLogger() {
 		return getManager().getContext().getLogger();
 	}
 
-	/**
-	 * Context name associated with this Store
-	 */
-	private String name = null;
 	/**
 	 * Name to register for this Store, used for logging.
 	 */
@@ -136,7 +124,7 @@ public class MongoStore extends StoreBase {
 	/**
 	 * Column to use for /Engine/Host/Context name
 	 */
-	protected String sessionAppCol = "app";
+		protected String sessionAppCol = "app";
 	/**
 	 * Data column to use.
 	 */
@@ -175,30 +163,6 @@ public class MongoStore extends StoreBase {
 	private MongoDatabase mongoDatabase;
 
 	private GridFSBucket gridFSFilesBucket;
-	/**
-	 * @return the name for this instance (built from container name)
-	 */
-	public String getName() {
-		if (name == null) {
-			Container container = manager.getContext();
-			String contextName = container.getName();
-			if (!contextName.startsWith("/")) {
-				contextName = "/" + contextName;
-			}
-			String hostName = "";
-			String engineName = "";
-
-			if (container.getParent() != null) {
-				Container host = container.getParent();
-				hostName = host.getName();
-				if (host.getParent() != null) {
-					engineName = host.getParent().getName();
-				}
-			}
-			name = "/" + engineName + "/" + hostName + contextName;
-		}
-		return name;
-	}
 
 	/**
 	 * @return the thread name for this Store.
@@ -671,17 +635,6 @@ public class MongoStore extends StoreBase {
 
 		this.mongoDatabase = null;
 		this.collection = null;
-
-	}
-
-	/**
-	 * Release the connection, if it
-	 * is associated with a connection pool.
-	 *
-	 * @param conn The connection to be released
-	 */
-	protected void release(Connection conn) {
-		this.close();
 
 	}
 
