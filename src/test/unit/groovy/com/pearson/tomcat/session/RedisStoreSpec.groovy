@@ -18,13 +18,10 @@ class RedisStoreSpec extends Specification {
 	Jedis testJedis
 
 	def setupSpec() {
-		println "Start Redis"
 		p = Runtime.getRuntime().exec("redis-server")
-
 	}
 
 	def cleanupSpec() {
-		println "After Redis"
 		p?.destroyForcibly()
 	}
 
@@ -191,7 +188,6 @@ class RedisStoreSpec extends Specification {
 		given:
 		def myObject = new ASerializableDTO(name: 'Child', salary: 9000, parent: new ASerializableDTO(name: 'parent', salary: 10000))
 		def session = new StandardSession(manager)
-		def jedis = store.getResource()
 		session.creationTime = System.currentTimeMillis() - 100
 		session.access()
 		session.maxInactiveInterval = 30
@@ -211,8 +207,8 @@ class RedisStoreSpec extends Specification {
 		firstRetrievedSession.setAttribute("secondData", "data")
 		myObject.name = "NewName"
 		firstRetrievedSession.setAttribute("myObject", myObject)
-		assert jedis.zrange("qi_sessions_expiry", 0, -1).collect { it } == ["MYSESSIONID"]
-		assert jedis.zrangeWithScores("qi_sessions_expiry", 0, -1).score[0].longValue() ==
+		assert testJedis.zrange("qi_sessions_expiry", 0, -1).collect { it } == ["MYSESSIONID"]
+		assert testJedis.zrangeWithScores("qi_sessions_expiry", 0, -1).score[0].longValue() ==
 				firstRetrievedSession.lastAccessedTime + (firstRetrievedSession.maxInactiveInterval * 1000)
 		store.save(firstRetrievedSession)
 		def secondRetrievedSession = store.load("MYSESSIONID")
@@ -224,11 +220,10 @@ class RedisStoreSpec extends Specification {
 		secondRetrievedSession.getAttribute('mySession') == null
 		secondRetrievedSession.getAttribute('myObject').name == 'NewName'
 		// checks the zadd index value for the new one
-		jedis.zrangeWithScores("qi_sessions_expiry", 0, -1).score[0].longValue() ==
+		testJedis.zrangeWithScores("qi_sessions_expiry", 0, -1).score[0].longValue() ==
 				secondRetrievedSession.lastAccessedTime + (secondRetrievedSession.maxInactiveInterval * 1000)
 
-		cleanup:
-		jedis?.close()
+
 	}
 
 	def "should get size accurately"() {
@@ -322,6 +317,57 @@ class RedisStoreSpec extends Specification {
 
 		then:
 		ids.sort() == ["MYSESSIONID0", "MYSESSIONID1", "MYSESSIONID2", "MYSESSIONID3"]
+	}
+
+	def "should remove by id"() {
+		given:
+		(0..1).each {
+			def session = new StandardSession(manager)
+			session.creationTime = System.currentTimeMillis() - 100
+			session.access()
+			session.maxInactiveInterval = 30
+			session.valid = true
+			session.setAttribute("mySession", "SOMEVALUE${it}")
+			session.setId("MYSESSIONID${it}", false)
+			store.save(session)
+		}
+		def savedIds = testJedis.zrange("qi_sessions_expiry", 0, -1).collect { it }
+
+		when:
+		store.remove("MYSESSIONID1")
+		def idsAfterRemoval = testJedis.zrange("qi_sessions_expiry", 0, -1).collect { it }
+
+		then:
+		savedIds.sort() == ["MYSESSIONID0", "MYSESSIONID1"]
+		idsAfterRemoval == ["MYSESSIONID0"]
+		!store.load("MYSESSIONID1")
+		store.load("MYSESSIONID0")
+	}
+
+	def "should remove all sessions when clear is invoked"() {
+		given:
+		(0..4).each {
+			def session = new StandardSession(manager)
+			session.creationTime = System.currentTimeMillis() - 100
+			session.access()
+			session.maxInactiveInterval = 30
+			session.valid = true
+			session.setAttribute("mySession", "SOMEVALUE${it}")
+			session.setId("MYSESSIONID${it}", false)
+			store.save(session)
+		}
+
+		when:
+		store.clear()
+
+		then:
+		testJedis.zrange("qi_sessions_expiry", 0, -1).size() == 0
+		(0..4).collect {
+			store.load("MYSESSIONID${it}")
+		}.every {
+			it == null
+		}
+
 	}
 
 	private addListener(support, propName) {

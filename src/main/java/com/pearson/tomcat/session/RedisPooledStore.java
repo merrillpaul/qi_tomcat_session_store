@@ -12,6 +12,8 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.Pipeline;
+import redis.clients.jedis.ScanParams;
+import redis.clients.jedis.ScanResult;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
@@ -22,6 +24,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -375,14 +378,96 @@ public class RedisPooledStore extends AbstractStore {
 		return _session;
 	}
 
+	/**
+	 * Remove the Session with the specified session identifier from
+	 * this Store, if present.  If no such Session is present, this method
+	 * takes no action.
+	 *
+	 * @param id Session identifier of the Session to be removed
+	 *
+	 * @exception IOException if an input/output error occurs
+	 */
 	@Override
 	public void remove(String id) throws IOException {
+		synchronized (this) {
+			int numberOfTries = 2;
+			while (numberOfTries > 0) {
+				Jedis jedis = getResource();
 
+				if (jedis == null) {
+					return;
+				}
+
+				try {
+					Pipeline pipeline = jedis.pipelined();
+					pipeline.del(keyName + "_user:" + id);
+					pipeline.zrem(keyName + "_expiry", id);
+					pipeline.sync();
+					// Break out after the finally block
+					numberOfTries = 0;
+				} catch (Exception e) {
+					getLogger().error(sm.getString(getStoreName() + ".RedisException", e));
+				} finally {
+					jedis.close();
+				}
+				numberOfTries--;
+			}
+		}
+
+		if (getLogger().isDebugEnabled()) {
+			getLogger().debug(sm.getString(getStoreName() + ".removing", id, keyName));
+		}
 	}
+
+	/**
+	 * Remove all of the Sessions in this Store.
+	 *
+	 * @exception IOException if an input/output error occurs
+	 */
 
 	@Override
 	public void clear() throws IOException {
+		synchronized (this) {
+			int numberOfTries = 2;
+			while (numberOfTries > 0) {
+				Jedis jedis = getResource();
+				if (jedis == null) {
+					return;
+				}
 
+				try {
+					Set<String> matchingKeys = new HashSet<>();
+					ScanParams params = new ScanParams();
+					params.match(keyName + "_user:*");
+
+					String nextCursor = "0";
+
+					do {
+						ScanResult<String> scanResult = jedis.scan(nextCursor, params);
+						List<String> keys = scanResult.getResult();
+						nextCursor = scanResult.getStringCursor();
+
+						matchingKeys.addAll(keys);
+
+					} while (!nextCursor.equals("0"));
+
+					Pipeline pipeline = jedis.pipelined();
+					pipeline.del(keyName + "_expiry");
+					if (matchingKeys.size() > 0) {
+						pipeline.del(matchingKeys.toArray(new String[matchingKeys.size()]));
+					}
+					pipeline.sync();
+					// Break out after the finally block
+					numberOfTries = 0;
+				} catch (Exception e) {
+					e.printStackTrace();
+					getLogger().error(sm.getString(getStoreName() + ".RedisException", e));
+				} finally {
+					jedis.close();
+				}
+				numberOfTries--;
+			}
+		}
 	}
 
 	/**
