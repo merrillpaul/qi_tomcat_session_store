@@ -4,6 +4,11 @@ The issue with that is the load balancer is not fully utilized and already conne
 
 The solution is to configure a shared memory resource, which is scalable, and which serves a data store for user sessions created by tomcat. The shared memory store that is prototyped is AWS Elasticache with REDIS engine on non clustered mode with sensible replica handling. This needs to be setup by AIDevops.
 
+## Development
+This is a gradle project. One can create intelliJ project files using `./gradlew :idea`. Once done, just double click in the intellij project workspace file.
+
+- Create a build `./gradlew clean build`
+
 ## Setup
 ### Shared Libraries
 Copy the shared libraries from here [shared libs files](https://drive.google.com/open?id=1Vo-C_hgmsBEMwv7iYEKli5yPFrrSD8Oe) to <tomcat>/lib.
